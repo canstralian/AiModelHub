@@ -124,6 +124,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         apiKey = process.env.HF_DEMO_API_KEY || '';
       }
       
+      // Flag to determine if we should use mock data for development/testing
+      const useMockData = !apiKey;
+      
       // Determine the endpoint URL based on the model
       let endpoint = '';
       
@@ -176,6 +179,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: new Date()
       });
       const inferenceId = inferenceRequest.id;
+
+      // If in development mode and no API key, use mock data
+      if (useMockData) {
+        console.log('Using mock data for inference request - no API key available');
+        
+        // Simulate response time
+        const startTime = Date.now();
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+        const endTime = Date.now();
+        const responseTime = (endTime - startTime) / 1000; // Convert to seconds
+        
+        // Generate a mock response based on the input
+        let mockOutput = '';
+        if (validatedData.model.includes('code') || validatedData.language !== 'en') {
+          // For code models
+          mockOutput = `// This is a mock response for the ${validatedData.model} model\n// Your input: ${validatedData.input.substring(0, 50)}...\n\nfunction mockResponse() {\n  console.log("Hello from mock response!");\n  return "This is working in development mode";\n}`;
+        } else {
+          // For chat models
+          mockOutput = `[MOCK RESPONSE - Dev Mode]\nYou asked: "${validatedData.input.substring(0, 50)}..."\n\nI'm a simulated response since no Hugging Face API key was provided. This is a development mode feature to test the application without requiring an actual API key.`;
+        }
+        
+        // Update the inference request with the mock response
+        await storage.updateInferenceRequest(inferenceId, {
+          response: mockOutput,
+          responseTime: Math.round(responseTime * 1000) // Convert to milliseconds
+        });
+        
+        return res.json({
+          output: mockOutput,
+          model: `${validatedData.model} (MOCK)`,
+          timeTaken: responseTime
+        });
+      }
 
       // Set up headers for the request
       const headers: Record<string, string> = {
