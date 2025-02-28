@@ -3,12 +3,14 @@ import { apiRequest } from '@/lib/queryClient';
 import { User, AuthResponse, InsertUser } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 
+type RegisterData = Omit<InsertUser, 'password'> & { password: string };
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   error: string | null;
   login: (username: string, password: string) => Promise<void>;
-  register: (userData: Omit<InsertUser, 'password'> & { password: string }) => Promise<void>;
+  register: (userData: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
@@ -16,8 +18,6 @@ interface AuthContextType {
 interface AuthProviderProps {
   children: ReactNode;
 }
-
-type RegisterData = Omit<InsertUser, 'password'> & { password: string };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -57,7 +57,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiRequest<LoginResponse>({
+      const response = await apiRequest<AuthResponse>({
         method: 'POST',
         url: '/api/auth/login',
         data: { username, password }
