@@ -1,28 +1,33 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { users, inferenceRequests } from '@shared/schema';
+import * as schema from '../shared/schema';
 import { log } from './vite';
 
-// Create a postgres client
+// Get database connection string from environment
 const connectionString = process.env.DATABASE_URL as string;
+
+if (!connectionString) {
+  throw new Error("DATABASE_URL environment variable is required");
+}
+
+// Create postgres client
 export const client = postgres(connectionString);
 
-// Create a drizzle client
-export const db = drizzle(client);
+// Create drizzle instance with schema
+export const db = drizzle(client, { schema });
 
 // Initialize database function
 export async function initializeDB() {
   try {
     log('Starting database initialization', 'db');
     
-    // This will be handled by drizzle-kit migrations
-    // We're just logging some info about the tables
-
-    log('Database initialized successfully', 'db');
+    // You could run checks or initialization logic here
+    // For now, we'll just make a simple query to verify the connection
+    await db.query.users.findMany({ limit: 1 });
     
-    return true;
+    log('Database initialized successfully', 'db');
   } catch (error) {
     log(`Database initialization error: ${error}`, 'db');
-    return false;
+    throw error;
   }
 }

@@ -166,8 +166,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
 
-      // Log the inference request
+      // Log the inference request with the user ID
+      const user = req.user as any;
       const inferenceRequest = await storage.createInferenceRequest({
+        userId: user.id,
         model: validatedData.model,
         input: validatedData.input,
         params: validatedData.params,
@@ -313,10 +315,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get recent inference requests
-  app.get('/api/inference/history', async (req, res) => {
+  // Get recent inference requests for the authenticated user
+  app.get('/api/inference/history', isAuthenticated, async (req, res) => {
     try {
-      const history = await storage.getRecentInferenceRequests();
+      const user = req.user as any;
+      const history = await storage.getUserInferenceRequests(user.id);
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch inference history' });
+    }
+  });
+  
+  // Get all inference requests (admin only)
+  app.get('/api/inference/admin/history', isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) {
+        return res.status(403).json({ error: 'Unauthorized. Admin access required.' });
+      }
+      
+      const history = await storage.getRecentInferenceRequests(50); // Get more for admins
       res.json(history);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch inference history' });
