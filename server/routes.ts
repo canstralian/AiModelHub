@@ -28,7 +28,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = inferenceRequestSchema.parse(req.body);
       
       // Get the API key from request or environment variable
-      const apiKey = validatedData.apiKey || process.env.HUGGINGFACE_API_KEY || '';
+      let apiKey = validatedData.apiKey || process.env.HUGGINGFACE_API_KEY || '';
+      
+      // For development/demo purposes only - avoid 401 errors during testing
+      if (!apiKey && process.env.NODE_ENV !== 'production') {
+        // Use a fallback demo API key if available
+        apiKey = process.env.HF_DEMO_API_KEY || '';
+      }
       
       // Determine the endpoint URL based on the model
       let endpoint = '';
@@ -111,7 +117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           try {
             // Try to parse as JSON
-            const errorJson = await response.json();
+            const errorJson = await response.json() as Record<string, unknown>;
             errorData = JSON.stringify(errorJson);
             
             // Format specific error messages
@@ -135,7 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Update the inference request with error information
           await storage.updateInferenceRequest(inferenceId, {
             error: errorMessage,
-            responseTime
+            responseTime: Math.round(responseTime * 1000) // Convert to milliseconds and round to integer
           });
           
           return res.status(response.status).json({
@@ -167,15 +173,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (Array.isArray(data)) {
           // Some models return an array of responses
-          if (data[0] && data[0].generated_text) {
-            output = String(data[0].generated_text);
+          const firstItem = data[0] as Record<string, unknown>;
+          if (firstItem && firstItem.generated_text) {
+            output = String(firstItem.generated_text);
           } else {
             output = JSON.stringify(data, null, 2);
           }
         } else if (typeof data === 'object' && data !== null) {
           // Some models return an object with generated_text
-          if (data.generated_text) {
-            output = String(data.generated_text);
+          const responseObj = data as Record<string, unknown>;
+          if (responseObj.generated_text) {
+            output = String(responseObj.generated_text);
           } else {
             output = JSON.stringify(data, null, 2);
           }

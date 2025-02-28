@@ -38,7 +38,7 @@ export const inferenceRequests = pgTable("inference_requests", {
   timestamp: timestamp("timestamp").notNull().defaultNow(),
   response: text("response"),
   error: text("error"),
-  responseTime: z.number().optional(),
+  responseTime: integer("response_time"),
 });
 
 export const insertInferenceRequestSchema = createInsertSchema(inferenceRequests)
