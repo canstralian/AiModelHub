@@ -68,12 +68,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       // Log the inference request
-      const inferenceId = await storage.createInferenceRequest({
+      const inferenceRequest = await storage.createInferenceRequest({
         model: validatedData.model,
         input: validatedData.input,
         params: validatedData.params,
         timestamp: new Date()
       });
+      const inferenceId = inferenceRequest.id;
 
       // Set up headers for the request
       const headers: Record<string, string> = {

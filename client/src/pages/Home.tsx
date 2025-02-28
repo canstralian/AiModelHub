@@ -36,7 +36,7 @@ export default function Home() {
   const handleSubmit = async () => {
     if (!inputText.trim()) return;
     
-    await inference({
+    await inference.mutateAsync({
       model: model === "custom" ? customModelUrl : model,
       apiKey,
       input: inputText,
