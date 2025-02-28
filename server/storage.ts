@@ -16,7 +16,7 @@ import { db } from './db';
 // you might need
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<DBUser | undefined>; // Return internal user with password for auth
   createUser(user: InsertUser): Promise<User>;
   validatePassword(inputPassword: string, hashedPassword: string): Promise<boolean>;
   updateLastLogin(userId: number): Promise<void>;

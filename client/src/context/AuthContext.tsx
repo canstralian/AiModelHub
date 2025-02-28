@@ -63,7 +63,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         data: { username, password }
       });
       
-      setUser(response.user);
+      // Cast user to the correct type (User) since it comes from userResponseSchema
+      setUser(response.user as User);
       toast({
         title: "Success",
         description: "Logged in successfully",

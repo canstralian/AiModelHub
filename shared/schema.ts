@@ -26,7 +26,7 @@ export const loginUserSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-// Auth response types
+// Auth response types - excludes password for security
 export const userResponseSchema = z.object({
   id: z.number(),
   username: z.string(),
@@ -44,8 +44,8 @@ export const authResponseSchema = z.object({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type LoginUser = z.infer<typeof loginUserSchema>;
-export type User = typeof users.$inferSelect;
-export type UserResponse = z.infer<typeof userResponseSchema>;
+export type User = z.infer<typeof userResponseSchema>; // Safe version without password
+export type DBUser = typeof users.$inferSelect; // Internal DB version that includes password
 export type AuthResponse = z.infer<typeof authResponseSchema>;
 
 // Model Parameters schema
