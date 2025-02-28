@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiRequest } from '@/lib/queryClient';
-import { User, AuthResponse, InsertUser } from '@shared/schema';
+import { User, AuthResponse, InsertUser, userResponseSchema } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 
 type RegisterData = Omit<InsertUser, 'password'> & { password: string };
@@ -43,7 +43,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         on401: 'returnNull'
       });
       
-      setUser(response);
+      // If we got a user, validate it through the schema
+      if (response) {
+        const validatedUser = userResponseSchema.parse(response);
+        setUser(validatedUser);
+      } else {
+        setUser(null);
+      }
     } catch (err) {
       setUser(null);
       // Don't set error here as this is a background check
@@ -63,8 +69,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         data: { username, password }
       });
       
-      // Cast user to the correct type (User) since it comes from userResponseSchema
-      setUser(response.user as User);
+      // Parse the user through the validation schema to ensure it matches our User type
+      const validatedUser = userResponseSchema.parse(response.user);
+      setUser(validatedUser);
       toast({
         title: "Success",
         description: "Logged in successfully",

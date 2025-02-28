@@ -1,7 +1,8 @@
 import { 
   users, 
   inferenceRequests,
-  type User, 
+  type User,
+  type DBUser, 
   type InsertUser,
   type InferenceRequest,
   type InsertInferenceRequest,
@@ -46,7 +47,7 @@ export class DBStorage implements IStorage {
     }
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
+  async getUserByUsername(username: string): Promise<DBUser | undefined> {
     try {
       const result = await db.select().from(users).where(eq(users.username, username));
       return result[0];
