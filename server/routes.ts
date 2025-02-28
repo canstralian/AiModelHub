@@ -106,36 +106,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Check if the request was successful
         if (!response.ok) {
-          const errorData = await response.text();
+          let errorData: string;
+          let errorMessage: string;
+          
+          try {
+            // Try to parse as JSON
+            const errorJson = await response.json();
+            errorData = JSON.stringify(errorJson);
+            
+            // Format specific error messages
+            if (errorJson.error && typeof errorJson.error === 'string') {
+              if (errorJson.error.includes('exceeded your monthly included credits')) {
+                errorMessage = 'You have exceeded the free tier quota for Hugging Face API. Please use your own API key or try again later.';
+              } else if (errorJson.error.includes('currently loading')) {
+                errorMessage = 'The model is currently loading. This may take a minute for larger models. Please try again shortly.';
+              } else {
+                errorMessage = errorJson.error;
+              }
+            } else {
+              errorMessage = `Hugging Face API Error (${response.status})`;
+            }
+          } catch (e) {
+            // If not JSON, treat as plain text
+            errorData = await response.text();
+            errorMessage = `Hugging Face API Error: ${errorData}`;
+          }
           
           // Update the inference request with error information
           await storage.updateInferenceRequest(inferenceId, {
-            error: `API Error: ${response.status} - ${errorData}`,
+            error: errorMessage,
             responseTime
           });
           
           return res.status(response.status).json({
-            error: `Hugging Face API Error: ${errorData}`,
+            error: errorMessage,
           });
         }
 
         // Parse the response data
-        const data = await response.json();
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          // Handle non-JSON responses
+          const textData = await response.text();
+          
+          // Update storage with error
+          await storage.updateInferenceRequest(inferenceId, {
+            error: `Invalid response format: ${textData.substring(0, 100)}...`,
+            responseTime
+          });
+          
+          return res.status(500).json({
+            error: 'Model returned an invalid response format',
+          });
+        }
         
         // Extract the output based on the response format
         let output = '';
         
         if (Array.isArray(data)) {
           // Some models return an array of responses
-          if (data[0] && typeof data[0].generated_text === 'string') {
-            output = data[0].generated_text;
+          if (data[0] && data[0].generated_text) {
+            output = String(data[0].generated_text);
           } else {
             output = JSON.stringify(data, null, 2);
           }
         } else if (typeof data === 'object' && data !== null) {
           // Some models return an object with generated_text
-          if (typeof data.generated_text === 'string') {
-            output = data.generated_text;
+          if (data.generated_text) {
+            output = String(data.generated_text);
           } else {
             output = JSON.stringify(data, null, 2);
           }
