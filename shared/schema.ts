@@ -7,14 +7,27 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  email: text("email").notNull().unique(),
+  fullName: text("full_name"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastLogin: timestamp("last_login"),
+  isAdmin: boolean("is_admin").notNull().default(false),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
+  email: true,
+  fullName: true,
+});
+
+export const loginUserSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type LoginUser = z.infer<typeof loginUserSchema>;
 export type User = typeof users.$inferSelect;
 
 // Model Parameters schema
@@ -32,6 +45,7 @@ export type ModelParams = z.infer<typeof modelParamsSchema>;
 // Inference Request schema
 export const inferenceRequests = pgTable("inference_requests", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
   model: text("model").notNull(),
   input: text("input").notNull(),
   params: jsonb("params").$type<ModelParams>().notNull(),
@@ -43,6 +57,7 @@ export const inferenceRequests = pgTable("inference_requests", {
 
 export const insertInferenceRequestSchema = createInsertSchema(inferenceRequests)
   .pick({
+    userId: true,
     model: true,
     input: true,
     params: true,
