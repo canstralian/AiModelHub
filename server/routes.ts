@@ -43,6 +43,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'codellama': 'codellama/CodeLlama-7b-hf',
           'python-reviewer': 'elsanns/xwin-lm-7b-python-code-review',
           'chatbot': 'mistralai/Mistral-7B-Instruct-v0.2',
+          'llama-cpp-agent': 'abacusai/Llama-2-70b-chat-hf',
+          'code-review-chains': 'microsoft/CodeReviewer',
+          'autocoder': 'replit/replit-code-v1-3b',
+          'codestral-22b': 'mistralai/Codestral-22B-v0.1',
+          'codeqwen-7b': 'Qwen/CodeQwen1.5-7B-Chat',
         };
         
         endpoint = `https://api-inference.huggingface.co/models/${modelEndpointMap[validatedData.model] || modelEndpointMap['chatbot']}`;

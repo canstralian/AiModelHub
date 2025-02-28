@@ -36,6 +36,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
             <option value="codellama">CodeLlama Playground</option>
             <option value="python-reviewer">AI Python Code Reviewer</option>
             <option value="chatbot">General-purpose Chatbot</option>
+            <option value="llama-cpp-agent">Llama-CPP-Agent</option>
+            <option value="code-review-chains">Code Review Chains</option>
+            <option value="autocoder">Autocoder</option>
+            <option value="codestral-22b">Codestral 22B v0.1</option>
+            <option value="codeqwen-7b">CodeQwen1.5 7B Chat</option>
             <option value="custom">Custom Model</option>
           </select>
           <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
