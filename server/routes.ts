@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import fetch from "node-fetch";
 import { z } from "zod";
 import passport from "passport";
-import { loginUserSchema, insertUserSchema } from "@shared/schema";
+import { loginUserSchema, insertUserSchema, type DBUser } from "@shared/schema";
 import { initializeDB } from "./db";
 
 // Validation schema for the inference request
@@ -46,13 +46,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Username already exists' });
       }
       
-      // Create the user
+      // Create the user - user returned from createUser is already filtered (no password)
       const user = await storage.createUser(userData);
       
-      // Remove password from response
-      const { password, ...userWithoutPassword } = user;
-      
-      res.status(201).json(userWithoutPassword);
+      res.status(201).json(user);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Invalid request';
       res.status(400).json({ error: errorMessage });
@@ -64,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate request body
       loginUserSchema.parse(req.body);
       
-      passport.authenticate('local', (err: Error, user: any, info: any) => {
+      passport.authenticate('local', (err: Error, user: DBUser | false, info: any) => {
         if (err) {
           return next(err);
         }
@@ -103,9 +100,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.get('/api/auth/user', isAuthenticated, (req, res) => {
-    const user = req.user as any;
+    // Cast the user to DBUser type which includes password
+    const user = req.user as DBUser;
     // Remove sensitive information
     const { password, ...userWithoutPassword } = user;
+    // Return the safe version of user data (User type)
     res.json(userWithoutPassword);
   });
 
@@ -170,7 +169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       // Log the inference request with the user ID
-      const user = req.user as any;
+      const user = req.user as DBUser;
       const inferenceRequest = await storage.createInferenceRequest({
         userId: user.id,
         model: validatedData.model,

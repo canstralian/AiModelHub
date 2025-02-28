@@ -2,12 +2,12 @@ import {
   users, 
   inferenceRequests,
   type User,
-  type DBUser, 
   type InsertUser,
   type InferenceRequest,
   type InsertInferenceRequest,
   type UpdateInferenceRequest
 } from "@shared/schema";
+import type { DBUser } from "../shared/schema";
 import { asc, desc, eq, and } from 'drizzle-orm';
 import { log } from './vite';
 import * as bcrypt from 'bcrypt';
