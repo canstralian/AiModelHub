@@ -40,7 +40,14 @@ export class DBStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
     try {
       const result = await db.select().from(users).where(eq(users.id, id));
-      return result[0];
+      
+      if (result.length === 0) {
+        return undefined;
+      }
+      
+      // Remove the password field for public user data
+      const { password, ...userWithoutPassword } = result[0];
+      return userWithoutPassword as User;
     } catch (error) {
       log(`Error getting user by ID: ${error}`, 'storage');
       return undefined;
@@ -68,7 +75,9 @@ export class DBStorage implements IStorage {
         password: hashedPassword
       }).returning();
       
-      return result[0];
+      // Remove the password field for the returned user
+      const { password, ...userWithoutPassword } = result[0];
+      return userWithoutPassword as User;
     } catch (error) {
       log(`Error creating user: ${error}`, 'storage');
       throw new Error(`Failed to create user: ${error}`);

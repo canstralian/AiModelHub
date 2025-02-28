@@ -6,7 +6,8 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { storage } from "./storage";
 import pgSession from "connect-pg-simple";
-import { db } from "./db"; // We'll create this file next
+import { db } from "./db";
+import { type DBUser, type User } from "@shared/schema";
 
 const app = express();
 app.use(express.json());
@@ -65,7 +66,7 @@ passport.use(new LocalStrategy(async (username, password, done) => {
 }));
 
 // Serialize user to the session
-passport.serializeUser((user: any, done) => {
+passport.serializeUser((user: DBUser, done) => {
   done(null, user.id);
 });
 

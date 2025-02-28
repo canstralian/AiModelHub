@@ -353,7 +353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get recent inference requests for the authenticated user
   app.get('/api/inference/history', isAuthenticated, async (req, res) => {
     try {
-      const user = req.user as any;
+      const user = req.user as DBUser;
       const history = await storage.getUserInferenceRequests(user.id);
       res.json(history);
     } catch (error) {
@@ -364,7 +364,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all inference requests (admin only)
   app.get('/api/inference/admin/history', isAuthenticated, async (req, res) => {
     try {
-      const user = req.user as any;
+      const user = req.user as DBUser;
       if (!user.isAdmin) {
         return res.status(403).json({ error: 'Unauthorized. Admin access required.' });
       }
