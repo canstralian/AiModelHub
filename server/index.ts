@@ -1,11 +1,85 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import session from "express-session";
+import passport from "passport";
+import { Strategy as LocalStrategy } from "passport-local";
+import { storage } from "./storage";
+import pgSession from "connect-pg-simple";
+import { db } from "./db"; // We'll create this file next
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Set up session store with PostgreSQL
+const PostgresqlStore = pgSession(session);
+const sessionStore = new PostgresqlStore({
+  conString: process.env.DATABASE_URL,
+  tableName: 'sessions', // Will be auto-created
+  createTableIfMissing: true
+});
+
+// Configure session middleware
+app.use(session({
+  store: sessionStore,
+  secret: process.env.SESSION_SECRET || 'huggingface-app-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production'
+  }
+}));
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Configure Passport to use a LocalStrategy
+passport.use(new LocalStrategy(async (username, password, done) => {
+  try {
+    // Find the user by username
+    const user = await storage.getUserByUsername(username);
+    
+    // If user not found or password doesn't match
+    if (!user) {
+      return done(null, false, { message: 'Incorrect username' });
+    }
+    
+    // Validate password
+    const isValid = await storage.validatePassword(password, user.password);
+    if (!isValid) {
+      return done(null, false, { message: 'Incorrect password' });
+    }
+    
+    // Update last login timestamp
+    await storage.updateLastLogin(user.id);
+    
+    // Return the user
+    return done(null, user);
+  } catch (error) {
+    return done(error);
+  }
+}));
+
+// Serialize user to the session
+passport.serializeUser((user: any, done) => {
+  done(null, user.id);
+});
+
+// Deserialize user from the session
+passport.deserializeUser(async (id: number, done) => {
+  try {
+    const user = await storage.getUser(id);
+    done(null, user);
+  } catch (error) {
+    done(error);
+  }
+});
+
+// Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;

@@ -1,8 +1,11 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import fetch from "node-fetch";
 import { z } from "zod";
+import passport from "passport";
+import { loginUserSchema, insertUserSchema } from "@shared/schema";
+import { initializeDB } from "./db";
 
 // Validation schema for the inference request
 const inferenceRequestSchema = z.object({
@@ -20,9 +23,94 @@ const inferenceRequestSchema = z.object({
   }),
 });
 
+// Authentication middleware
+const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ error: 'Not authenticated' });
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize the database
+  await initializeDB();
+
+  // Authentication routes
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const userData = insertUserSchema.parse(req.body);
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByUsername(userData.username);
+      if (existingUser) {
+        return res.status(400).json({ error: 'Username already exists' });
+      }
+      
+      // Create the user
+      const user = await storage.createUser(userData);
+      
+      // Remove password from response
+      const { password, ...userWithoutPassword } = user;
+      
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Invalid request';
+      res.status(400).json({ error: errorMessage });
+    }
+  });
+  
+  app.post('/api/auth/login', (req, res, next) => {
+    try {
+      // Validate request body
+      loginUserSchema.parse(req.body);
+      
+      passport.authenticate('local', (err: Error, user: any, info: any) => {
+        if (err) {
+          return next(err);
+        }
+        
+        if (!user) {
+          return res.status(401).json({ error: info.message || 'Authentication failed' });
+        }
+        
+        req.logIn(user, (loginErr) => {
+          if (loginErr) {
+            return next(loginErr);
+          }
+          
+          // Remove password from response
+          const { password, ...userWithoutPassword } = user;
+          
+          return res.json({
+            message: 'Login successful',
+            user: userWithoutPassword
+          });
+        });
+      })(req, res, next);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Invalid request';
+      res.status(400).json({ error: errorMessage });
+    }
+  });
+  
+  app.post('/api/auth/logout', (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Logout failed' });
+      }
+      res.json({ message: 'Logged out successfully' });
+    });
+  });
+  
+  app.get('/api/auth/user', isAuthenticated, (req, res) => {
+    const user = req.user as any;
+    // Remove sensitive information
+    const { password, ...userWithoutPassword } = user;
+    res.json(userWithoutPassword);
+  });
+
   // Endpoint for Hugging Face model inference
-  app.post('/api/inference', async (req, res) => {
+  app.post('/api/inference', isAuthenticated, async (req, res) => {
     try {
       // Validate request body
       const validatedData = inferenceRequestSchema.parse(req.body);
