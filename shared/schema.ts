@@ -26,9 +26,27 @@ export const loginUserSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
+// Auth response types
+export const userResponseSchema = z.object({
+  id: z.number(),
+  username: z.string(),
+  email: z.string(),
+  fullName: z.string().nullable(),
+  createdAt: z.date(),
+  lastLogin: z.date().nullable(),
+  isAdmin: z.boolean().default(false),
+});
+
+export const authResponseSchema = z.object({
+  user: userResponseSchema,
+  message: z.string(),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type LoginUser = z.infer<typeof loginUserSchema>;
 export type User = typeof users.$inferSelect;
+export type UserResponse = z.infer<typeof userResponseSchema>;
+export type AuthResponse = z.infer<typeof authResponseSchema>;
 
 // Model Parameters schema
 export const modelParamsSchema = z.object({

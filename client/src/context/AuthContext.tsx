@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiRequest } from '@/lib/queryClient';
-import { User } from '@shared/schema';
+import { User, AuthResponse, InsertUser } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
@@ -8,7 +8,7 @@ interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   login: (username: string, password: string) => Promise<void>;
-  register: (userData: RegisterData) => Promise<void>;
+  register: (userData: Omit<InsertUser, 'password'> & { password: string }) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
@@ -17,12 +17,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-interface RegisterData {
-  username: string;
-  password: string;
-  email: string;
-  fullName?: string;
-}
+type RegisterData = Omit<InsertUser, 'password'> & { password: string };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -42,17 +37,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiRequest({
+      const response = await apiRequest<User | null>({
         method: 'GET',
         url: '/api/auth/user',
         on401: 'returnNull'
       });
       
-      if (response) {
-        setUser(response as User);
-      } else {
-        setUser(null);
-      }
+      setUser(response);
     } catch (err) {
       setUser(null);
       // Don't set error here as this is a background check
@@ -66,19 +57,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiRequest({
+      const response = await apiRequest<LoginResponse>({
         method: 'POST',
         url: '/api/auth/login',
         data: { username, password }
       });
       
-      if (response && 'user' in response) {
-        setUser(response.user as User);
-        toast({
-          title: "Success",
-          description: "Logged in successfully",
-        });
-      }
+      setUser(response.user);
+      toast({
+        title: "Success",
+        description: "Logged in successfully",
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);
@@ -98,7 +87,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(true);
     setError(null);
     try {
-      await apiRequest({
+      await apiRequest<User>({
         method: 'POST',
         url: '/api/auth/register',
         data: userData
@@ -126,7 +115,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async () => {
     setIsLoading(true);
     try {
-      await apiRequest({
+      await apiRequest<{message: string}>({
         method: 'POST',
         url: '/api/auth/logout',
       });
