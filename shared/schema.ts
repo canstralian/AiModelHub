@@ -34,7 +34,7 @@ export const inferenceRequests = pgTable("inference_requests", {
   id: serial("id").primaryKey(),
   model: text("model").notNull(),
   input: text("input").notNull(),
-  params: jsonb("params").notNull(),
+  params: jsonb("params").$type<ModelParams>().notNull(),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
   response: text("response"),
   error: text("error"),

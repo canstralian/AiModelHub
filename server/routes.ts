@@ -160,7 +160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Update storage with error
           await storage.updateInferenceRequest(inferenceId, {
             error: `Invalid response format: ${textData.substring(0, 100)}...`,
-            responseTime
+            responseTime: Math.round(responseTime * 1000) // Convert to milliseconds and round to integer
           });
           
           return res.status(500).json({
@@ -192,16 +192,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           output = JSON.stringify(data, null, 2);
         }
 
+        // Convert responseTime to milliseconds for storage
+        const responseTimeMs = Math.round(responseTime * 1000); 
+        
         // Update the inference request with the response
         await storage.updateInferenceRequest(inferenceId, {
           response: output,
-          responseTime
+          responseTime: responseTimeMs
         });
 
         return res.json({
           output: output,
           model: validatedData.model,
-          timeTaken: responseTime
+          timeTaken: responseTime // Keep seconds for API response
         });
       } catch (fetchError) {
         const error = fetchError instanceof Error ? fetchError.message : 'Unknown error occurred';

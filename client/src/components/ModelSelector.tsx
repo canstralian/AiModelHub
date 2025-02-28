@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Wrench } from 'lucide-react';
+import { Eye, EyeOff, Wrench, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip } from '@/components/ui/tooltip';
 import { TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useModelMetadata } from '@/hooks/useModelMetadata';
 
 interface ModelSelectorProps {
   model: string;
@@ -12,56 +13,6 @@ interface ModelSelectorProps {
   setApiKey: (apiKey: string) => void;
 }
 
-// Model categories and their attributes
-interface ModelOption {
-  value: string;
-  label: string;
-  isTool?: boolean;
-  description?: string;
-}
-
-interface ModelCategory {
-  name: string;
-  models: ModelOption[];
-}
-
-const modelCategories: ModelCategory[] = [
-  {
-    name: "Code Generation",
-    models: [
-      { value: "deepseek-coder", label: "Deepseek Coder", description: "Specialized for code generation and completion" },
-      { value: "codellama", label: "CodeLlama", description: "Meta's code-focused language model" },
-      { value: "codestral-22b", label: "Codestral 22B v0.1", description: "Large language model optimized for code" },
-      { value: "codeqwen-7b", label: "CodeQwen1.5 7B", description: "Efficient code generation model" },
-      { value: "autocoder", label: "Autocoder", isTool: true, description: "Tool for automated code generation and completion" }
-    ]
-  },
-  {
-    name: "Code Analysis Tools",
-    models: [
-      { value: "python-reviewer", label: "Python Code Reviewer", isTool: true, description: "Identifies issues in Python code" },
-      { value: "code-review-chains", label: "Code Review Chains", isTool: true, description: "Multi-step code analysis and improvement" },
-      { value: "llama-cpp-agent", label: "Llama-CPP-Agent", isTool: true, description: "Specialized agent for code optimization" }
-    ]
-  },
-  {
-    name: "General Purpose",
-    models: [
-      { value: "chatbot", label: "General-purpose Chatbot", description: "For conversation and general queries" },
-      { value: "custom", label: "Custom Model", description: "Use your own Hugging Face model" }
-    ]
-  }
-];
-
-// Helper function to find the model option for a given value
-const findModelOption = (value: string): ModelOption | undefined => {
-  for (const category of modelCategories) {
-    const model = category.models.find(m => m.value === value);
-    if (model) return model;
-  }
-  return undefined;
-};
-
 const ModelSelector: React.FC<ModelSelectorProps> = ({ 
   model, 
   setModel, 
@@ -69,13 +20,14 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   setApiKey 
 }) => {
   const [showApiKey, setShowApiKey] = useState(false);
+  const { modelCategories, getModelByValue } = useModelMetadata();
 
   const toggleApiKeyVisibility = () => {
     setShowApiKey(!showApiKey);
   };
 
   // Get current model option
-  const currentModel = findModelOption(model);
+  const currentModel = getModelByValue(model);
 
   return (
     <div className="flex flex-col gap-4 mb-6">
@@ -125,6 +77,28 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
           {currentModel?.description && (
             <p className="mt-1 text-xs text-gray-500">{currentModel.description}</p>
           )}
+          {currentModel?.category && (
+            <div className="mt-1 flex items-center">
+              <Badge variant="secondary" className="text-xs">
+                {currentModel.category}
+              </Badge>
+              {currentModel.samplePrompt && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0 ml-1">
+                        <Info className="h-3 w-3 text-gray-400" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="start" className="max-w-sm">
+                      <p className="font-semibold text-xs">Sample prompt:</p>
+                      <p className="text-xs mt-1">{currentModel.samplePrompt}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+          )}
         </div>
         
         <div className="sm:w-64">
@@ -150,6 +124,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
               </Button>
             </div>
           </div>
+          <p className="mt-1 text-xs text-gray-500">
+            {currentModel?.isTool ? 
+              "API key required for tool models" : 
+              "Optional for most models"}
+          </p>
         </div>
       </div>
     </div>

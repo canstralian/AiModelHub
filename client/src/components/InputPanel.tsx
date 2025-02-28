@@ -2,6 +2,7 @@ import React from 'react';
 import { Trash2, FileCode, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import CodeEditor from './CodeEditor';
+import { useModelMetadata } from '@/hooks/useModelMetadata';
 import { sampleCodes } from '@/lib/sampleCode';
 
 interface InputPanelProps {
@@ -21,23 +22,47 @@ const InputPanel: React.FC<InputPanelProps> = ({
   onSubmit,
   model
 }) => {
+  const { getSamplePrompt, getModelByValue } = useModelMetadata();
+  
   const clearInput = () => {
     setInputText('');
   };
 
   const loadSample = () => {
-    const sampleCode = sampleCodes[model] || sampleCodes.default;
-    setInputText(sampleCode);
+    // First try to get a sample from useModelMetadata
+    const samplePrompt = getSamplePrompt(model);
     
-    // Set appropriate language based on model
-    if (model === 'codellama') {
-      setLanguage('javascript');
-    } else if (model === 'chatbot') {
-      setLanguage('plaintext');
+    if (samplePrompt) {
+      setInputText(samplePrompt);
+      
+      // Determine language based on content
+      if (samplePrompt.includes('def ') || samplePrompt.includes('import ')) {
+        setLanguage('python');
+      } else if (samplePrompt.includes('function') || samplePrompt.includes('const ')) {
+        setLanguage('javascript');
+      } else if (samplePrompt.includes('class') && samplePrompt.includes(':')) {
+        setLanguage('typescript');
+      } else {
+        setLanguage('plaintext');
+      }
     } else {
-      setLanguage('python');
+      // Fallback to the old sampleCodes if no sample prompt exists
+      const sampleCode = sampleCodes[model] || sampleCodes.default;
+      setInputText(sampleCode);
+      
+      // Set appropriate language based on model
+      if (model === 'codellama') {
+        setLanguage('javascript');
+      } else if (model === 'chatbot') {
+        setLanguage('plaintext');
+      } else {
+        setLanguage('python');
+      }
     }
   };
+
+  const currentModel = getModelByValue(model);
+  const buttonLabel = currentModel?.isTool ? 'Analyze' : 'Generate';
 
   return (
     <div className="w-full lg:w-1/2">
@@ -92,9 +117,10 @@ const InputPanel: React.FC<InputPanelProps> = ({
               variant="default" 
               className="bg-hf-accent hover:bg-hf-accent/90"
               onClick={onSubmit}
+              disabled={!inputText.trim()}
             >
               <Send className="h-4 w-4 mr-1.5" />
-              Send
+              {buttonLabel}
             </Button>
           </div>
         </div>
