@@ -42,14 +42,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiRequest<User>({
+      const response = await apiRequest({
         method: 'GET',
         url: '/api/auth/user',
         on401: 'returnNull'
       });
       
       if (response) {
-        setUser(response);
+        setUser(response as User);
       } else {
         setUser(null);
       }
@@ -66,17 +66,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiRequest<{ user: User; message: string }>({
+      const response = await apiRequest({
         method: 'POST',
         url: '/api/auth/login',
         data: { username, password }
       });
       
-      setUser(response.user);
-      toast({
-        title: "Success",
-        description: "Logged in successfully",
-      });
+      if (response && 'user' in response) {
+        setUser(response.user as User);
+        toast({
+          title: "Success",
+          description: "Logged in successfully",
+        });
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);
