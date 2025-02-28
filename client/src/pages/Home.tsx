@@ -8,6 +8,7 @@ import OutputPanel from "@/components/OutputPanel";
 import { useState } from "react";
 import { ModelParams } from "@/lib/types";
 import { useModelInference } from "@/hooks/useModelInference";
+import { useModelMetadata } from "@/hooks/useModelMetadata";
 
 export default function Home() {
   const [model, setModel] = useState("deepseek-coder");
@@ -24,24 +25,37 @@ export default function Home() {
     stop_sequences: "",
   });
 
+  const { getModelByValue } = useModelMetadata();
   const { 
     inference, 
     isLoading, 
     error, 
     timestamp, 
     responseTime, 
-    reset 
+    reset,
+    retryCount
   } = useModelInference();
 
   const handleSubmit = async () => {
     if (!inputText.trim()) return;
     
+    // Get the current model
+    const currentModel = getModelByValue(model);
+    const modelIdentifier = model === "custom" ? customModelUrl : model;
+    
+    // Set default temperature based on model type
+    let tempParams = {...modelParams};
+    if (currentModel?.isTool && tempParams.temperature > 0.5) {
+      // Tool models typically work better with lower temperature
+      tempParams.temperature = 0.2;
+    }
+    
     await inference.mutateAsync({
-      model: model === "custom" ? customModelUrl : model,
+      model: modelIdentifier,
       apiKey,
       input: inputText,
       language,
-      params: modelParams
+      params: tempParams
     });
   };
 
@@ -50,6 +64,44 @@ export default function Home() {
       ...prev,
       [key]: value
     }));
+  };
+
+  // When changing model, adjust parameters if needed
+  const handleModelChange = (newModel: string) => {
+    setModel(newModel);
+    
+    // Reset api key when switching to/from custom model
+    if (newModel === "custom" || model === "custom") {
+      setApiKey("");
+    }
+    
+    // Set optimal default parameters based on model type
+    const selectedModel = getModelByValue(newModel);
+    if (selectedModel?.isTool) {
+      // Tool models typically work better with these parameters
+      setModelParams(prev => ({
+        ...prev,
+        temperature: 0.2,
+        top_p: 0.95,
+        max_tokens: 2048, // Tools might need more tokens for analysis
+      }));
+    } else if (newModel === "chatbot") {
+      // Chatbot models typically work well with these parameters
+      setModelParams(prev => ({
+        ...prev,
+        temperature: 0.7,
+        top_p: 0.9,
+        max_tokens: 1024,
+      }));
+    } else {
+      // Code models typically work better with lower temperature
+      setModelParams(prev => ({
+        ...prev,
+        temperature: 0.5,
+        top_p: 0.95,
+        max_tokens: 1024,
+      }));
+    }
   };
 
   return (
@@ -65,7 +117,7 @@ export default function Home() {
 
           <ModelSelector 
             model={model} 
-            setModel={setModel} 
+            setModel={handleModelChange}
             apiKey={apiKey} 
             setApiKey={setApiKey} 
           />
@@ -93,7 +145,7 @@ export default function Home() {
             />
 
             <OutputPanel 
-              result={inference.data}
+              result={typeof inference.data === 'string' ? inference.data : null}
               isLoading={isLoading}
               error={error}
               timestamp={timestamp}
