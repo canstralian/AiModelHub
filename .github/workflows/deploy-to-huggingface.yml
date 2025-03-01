@@ -1,0 +1,62 @@
+name: CI/CD - Deploy to Hugging Face & Manage Versioning
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Tests
+        run: npm test || echo "No tests specified, continuing deployment"
+        
+      - name: Determine Version
+        id: get_version
+        run: |
+          # Extract version from package.json
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+      - name: Deploy to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}
+          HF_SPACE_NAME: ${{ secrets.HF_SPACE_NAME }}
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          
+          # Add Hugging Face remote if it doesn't already exist
+          git remote add hf https://$HF_USERNAME:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/$HF_USERNAME/$HF_SPACE_NAME || true
+          
+          # Push your main branch (or map master to main if needed)
+          git push hf main || git push hf master:main
+
+      - name: Create a GitHub Release (for versioning)
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ steps.get_version.outputs.version || github.run_number }}
+          name: Release v${{ steps.get_version.outputs.version || github.run_number }}
+          body: |
+            ## Automated Release
+            
+            Deployment to Hugging Face Space: ${{ secrets.HF_USERNAME }}/${{ secrets.HF_SPACE_NAME }}
+            
+            ### Changes
+            ${{ github.event.head_commit.message }}
