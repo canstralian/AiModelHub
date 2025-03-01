@@ -1,0 +1,6 @@
+{
+  "app_port": 5000,
+  "build_command": "npm run build",
+  "node_versions": ["18"],
+  "start_command": "npm run start"
+}
